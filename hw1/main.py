@@ -166,7 +166,61 @@ def laplacian_pyramid_blending(img_in1, img_in2):
 
    # Write laplacian pyramid blending codes here
    img_out = img_in1 # Blending result
+   ###
+   NO_OF_LEVELS = 5
 
+   img_in1 = img_in1[:,:img_in1.shape[0]]
+   img_in2 = img_in2[:img_in1.shape[0],:img_in1.shape[0]]
+
+   downsampleSet1 = [img_in1]
+   im1Backup =  img_in1.copy()
+   for i in xrange(NO_OF_LEVELS+1):
+       img_in1 = cv2.pyrDown(img_in1)
+       downsampleSet1.append(img_in1)
+
+   downsampleSet2 = [img_in2]
+   im2Backup =  img_in2.copy()
+   for i in xrange(NO_OF_LEVELS+1):
+       img_in2 = cv2.pyrDown(img_in2)
+       downsampleSet2.append(img_in2)
+
+    #laplacian Level 1 = Gaussian L1 - pyrUp(Gaussian L2)
+   laplacianSet1 = [downsampleSet1[NO_OF_LEVELS]]
+   for i in xrange(NO_OF_LEVELS,0,-1):
+       ithGaussian = downsampleSet1[i]
+       pyredUpithGaussian = cv2.pyrUp(ithGaussian)
+       i_1thGaussian = downsampleSet1[i-1]
+       ithLaplacian = cv2.subtract(i_1thGaussian,pyredUpithGaussian)
+       laplacianSet1.append(ithLaplacian)
+
+
+
+   laplacianSet2 = [downsampleSet2[NO_OF_LEVELS]]
+   for i in xrange(NO_OF_LEVELS,0,-1):
+       ithGaussian = downsampleSet2[i]
+       pyredUpithGaussian = cv2.pyrUp(ithGaussian)
+       i_1thGaussian = downsampleSet2[i-1]
+       ithLaplacian = cv2.subtract(i_1thGaussian,pyredUpithGaussian)
+       laplacianSet2.append(ithLaplacian)
+
+   stackedLaplacians = []
+   for i in xrange(NO_OF_LEVELS+1):
+       ithLap1 = laplacianSet1[i]
+       ithLap2 = laplacianSet2[i]
+       a,b,c = ithLap1.shape
+
+       stackedLap = np.hstack((ithLap1[ : , :b/2 , : ], ithLap2[ : , b/2: , : ] ))
+       stackedLaplacians.append(stackedLap)
+
+   t = stackedLaplacians[0]
+   #print  len(stackedLaplacians)
+   for i in xrange(1, NO_OF_LEVELS+1):
+       t = cv2.pyrUp(t)
+       t = cv2.add(t, stackedLaplacians[i])
+   img_out = t
+
+
+   ###
    return True, img_out
 
 def Question3():
