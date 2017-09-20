@@ -66,7 +66,7 @@ def Question1():
    succeed, output_image = histogram_equalization(input_image)
 
    # Write out the result
-   output_name = sys.argv[3] + "1.jpg"
+   output_name = sys.argv[3] + "output1.png"
    cv2.imwrite(output_name, output_image)
 
    return True
@@ -75,32 +75,71 @@ def Question1():
 # ===== Question 2: Frequency domain filtering ======
 # ===================================================
 
+def ft(im, newsize=None):
+   dft = np.fft.fft2(np.float32(im),newsize)
+   return np.fft.fftshift(dft)
+
+def ift(shift):
+   f_ishift = np.fft.ifftshift(shift)
+   img_back = np.fft.ifft2(f_ishift)
+   return np.abs(img_back)
+
+
 def low_pass_filter(img_in):
 
    # Write low pass filter here
    img_out = img_in # Low pass filter result
+   ###
+   lowpassfilter = np.uint8(np.zeros(img_in.shape))
+   lowpassfilter[110:130, 150:170] = 1
 
+   fftimg = ft(img_in)
+
+   lpfftimg = fftimg*lowpassfilter
+   lpimg = ift(lpfftimg)
+   ###
+   img_out = np.uint8(lpimg)
    return True, img_out
 
 def high_pass_filter(img_in):
-
    # Write high pass filter here
    img_out = img_in # High pass filter result
+   ###
+   highpassfilter = np.uint8(np.ones(img_in.shape))
+   highpassfilter[110:130, 150:170] = 0
 
+   fftimg = ft(img_in)
+
+   hpfftimg = fftimg*highpassfilter
+   hpimg = ift(hpfftimg)
+   ###
+   img_out = np.uint8(hpimg)
    return True, img_out
 
 def deconvolution(img_in):
 
    # Write deconvolution codes here
    img_out = img_in # Deconvolution result
+   ###
+   fftimg2 = ft(img_in)
 
+   gaussianKernel = cv2.getGaussianKernel(21,5)
+   gaussianKernel = gaussianKernel * gaussianKernel.T
+
+   fftGk = ft(gaussianKernel, img_in.shape)
+
+   deconvolve = fftimg2/fftGk
+
+   unblurred_img = ift(deconvolve)
+   ###
+   img_out = unblurred_img
    return True, img_out
 
 def Question2():
 
    # Read in input images
-   input_image1 = cv2.imread(sys.argv[2], cv2.IMREAD_COLOR);
-   input_image2 = cv2.imread(sys.argv[3], cv2.IMREAD_COLOR);
+   input_image1 = cv2.imread(sys.argv[2], 0);
+   input_image2 = cv2.imread(sys.argv[3], cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH);
 
    # Low and high pass filter
    succeed1, output_image1 = low_pass_filter(input_image1)
@@ -110,12 +149,12 @@ def Question2():
    succeed3, output_image3 = deconvolution(input_image2)
 
    # Write out the result
-   output_name1 = sys.argv[4] + "2.jpg"
-   output_name2 = sys.argv[4] + "3.jpg"
-   output_name3 = sys.argv[4] + "4.jpg"
+   output_name1 = sys.argv[4] + "output2LPF.png"
+   output_name2 = sys.argv[4] + "output2HPF.png"
+   output_name3 = sys.argv[4] + "output2deconv.png"
    cv2.imwrite(output_name1, output_image1)
    cv2.imwrite(output_name2, output_image2)
-   cv2.imwrite(output_name3, output_image3)
+   cv2.imwrite(output_name3, cv2.convertScaleAbs(output_image3, alpha=255.0))
 
    return True
 
@@ -140,7 +179,7 @@ def Question3():
    succeed, output_image = laplacian_pyramid_blending(input_image1, input_image2)
 
    # Write out the result
-   output_name = sys.argv[4] + "5.jpg"
+   output_name = sys.argv[4] + "output3.png"
    cv2.imwrite(output_name, output_image)
 
    return True
