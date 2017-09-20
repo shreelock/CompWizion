@@ -6,7 +6,7 @@
 import os
 import sys
 import cv2
-import numpy
+import numpy as np
 
 def help_message():
    print("Usage: [Question_Number] [Input_Options] [Output_Options]")
@@ -31,6 +31,29 @@ def histogram_equalization(img_in):
 
    # Write histogram equalization here
    img_out = img_in # Histogram equalization result
+
+   #####
+   processed=np.zeros((img_in.shape[0],img_in.shape[1], 3)).astype("uint8")
+   for i in xrange(3):
+       b=img_in[:,:,i]
+
+       hist = cv2.calcHist([b], [0], None,[256], [0,255])
+       cdf = np.cumsum(hist)
+
+       totalpixels = sum(hist) - 1
+       min_of_cdf = min(cdf)
+       equalizeFunc = np.vectorize(
+           lambda p : round(
+               ( (cdf[p]- min_of_cdf) * 255)
+                / totalpixels )
+           )
+
+
+       d = equalizeFunc(b)
+       np.clip(d, 0,255, out=d)
+       processed[:,:,i] = d
+   #####
+   img_out = processed
 
    return True, img_out
 
