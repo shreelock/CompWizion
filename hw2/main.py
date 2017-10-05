@@ -119,7 +119,7 @@ def cylindricalWarpImage(img1, K, savefig=False):
     # go inverse from cylindrical coord to the image
     # (this way there are no gaps)
     cyl = np.zeros_like(img1)
-    cyl_mask = np.zeros_like(img1)
+    cyl_mask = np.zeros_like(img1, dtype='float32')
     cyl_h, cyl_w = cyl.shape
     x_c = float(cyl_w) / 2.0
     y_c = float(cyl_h) / 2.0
@@ -139,7 +139,7 @@ def cylindricalWarpImage(img1, K, savefig=False):
                 continue
 
             cyl[int(y_cyl), int(x_cyl)] = img1[int(y_im), int(x_im)]
-            cyl_mask[int(y_cyl), int(x_cyl)] = 255
+            cyl_mask[int(y_cyl), int(x_cyl)] = 1
 
     if savefig:
         plt.imshow(cyl, cmap='gray')
@@ -148,6 +148,61 @@ def cylindricalWarpImage(img1, K, savefig=False):
     return (cyl, cyl_mask)
 
 
+#----------------------------------------------------------------------
+
+
+def Laplacian_Pyramid_Blending_with_mask2(A, B, m, num_levels=6):
+    # assume mask is float32 [0,1]
+
+    # generate Gaussian pyramid for A,B and mask
+    GA = A.copy()
+    GB = B.copy()
+    GM = m.copy()
+
+    gpA = [GA]
+    gpB = [GB]
+    gpM = [GM]
+
+    for i in xrange(num_levels):
+        GA = cv2.pyrDown(GA)
+        GB = cv2.pyrDown(GB)
+        GM = cv2.pyrDown(GM)
+
+        gpA.append(np.float32(GA))
+        gpB.append(np.float32(GB))
+        gpM.append(np.float32(GM))
+
+    # generate Laplacian Pyramids for A,B and masks
+    lpA = [gpA[num_levels - 1]
+           ]  # the bottom of the Lap-pyr holds the last (smallest) Gauss level
+    lpB = [gpB[num_levels - 1]]
+    gpMr = [gpM[num_levels - 1]]
+
+    for i in xrange(num_levels - 1, 0, -1):
+        # Laplacian: subtarct upscaled version of lower level from current level
+        # to get the high frequencies
+        LA = np.subtract(gpA[i - 1], cv2.pyrUp(gpA[i])).astype('float32')
+        LB = np.subtract(gpB[i - 1], cv2.pyrUp(gpB[i])).astype('float32')
+        lpA.append(LA)
+        lpB.append(LB)
+        gpMr.append(gpM[i - 1])  # also reverse the masks
+
+    # Now blend images according to mask in each level
+    LS = []
+    for la, lb, gm in zip(lpA, lpB, gpMr):
+        ls = np.add(la * gm / 255.0, lb * (1.0 - gm) / 255.0)
+        LS.append(ls)
+
+    # now reconstruct
+    ls_ = LS[0]
+    for i in xrange(1, num_levels):
+        ls_ = cv2.pyrUp(ls_)
+        ls_ = cv2.add(ls_, LS[i])
+
+    return ls_
+
+
+#----------------------------------------------------------------------
 '''
 Calculate the geometric transform (only affine or homography) between two images,
 based on feature matching and alignment with a robust estimator (RANSAC).
@@ -241,8 +296,40 @@ def Bonus_perspective_warping(img1, img2, img3):
 
     # Write your codes here
     output_image = img1  # This is dummy output, change it to your output
+    # ===============================================
+    imc = img1  #cv2.imread("../hw2/input1.png", 0)
+    maskimc = np.ones_like(imc, dtype='float32')
 
+    imc = cv2.copyMakeBorder(imc, 200, 200, 500, 500, cv2.BORDER_CONSTANT)
+    maskimc = cv2.copyMakeBorder(maskimc, 200, 200, 500, 500,
+                                 cv2.BORDER_CONSTANT)
+
+    imr = img2  #cv2.imread("../hw2/input2.png", 0)
+    maskimr = np.ones_like(imr, dtype='float32')
+
+    iml = img3  #cv2.imread("../hw2/input3.png", 0)
+    maskiml = np.ones_like(iml, dtype='float32')
+
+    (M, pts1, pts2, mask) = getTransform(imr, imc, "homography")
+    outcr = cv2.warpPerspective(imr, M, (imc.shape[1], imc.shape[0]))
+    mask_outcr = cv2.warpPerspective(maskimr, M, (imc.shape[1], imc.shape[0]))
+
+    (M, pts1, pts2, mask) = getTransform(iml, imc, "homography")
+    outlc = cv2.warpPerspective(iml, M, (imc.shape[1], imc.shape[0]))
+    mask_outlc = cv2.warpPerspective(maskiml, M, (imc.shape[1], imc.shape[0]))
+
+    lpb_lr = Laplacian_Pyramid_Blending_with_mask2(
+        outlc, outcr, mask_outlc, 4)  #Give mask of the first argumetn
+    lpb_fin = Laplacian_Pyramid_Blending_with_mask2(
+        imc, lpb_lr, maskimc, 4)  #Give mask of the first argumetn
+
+    imfinal3 = np.maximum.reduce([lpb_lr, lpb_fin])
+    imfinal3 = np.array(imfinal3 * 255, dtype=np.uint8)
+
+    # ================================================
+    # ===============================================
     # Write out the result
+    output_image = imfinal3
     output_name = sys.argv[5] + "output_homography_lpb.png"
     cv2.imwrite(output_name, output_image)
 
@@ -257,18 +344,18 @@ def Cylindrical_warping(img1, img2, img3):
     # Write your codes here
     output_image = img1  # This is dummy output, change it to your output
     # ===============================================
-    f = 450
-    imcc = img1 #cv2.imread("../hw2/input1.png", 0)
+    f = 430
+    imcc = img1  #cv2.imread("../hw2/input1.png", 0)
     h, w = imcc.shape
     K = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
     imcc, maskcc = cylindricalWarpImage(imcc, K)
 
-    imrc = img2 #cv2.imread("../hw2/input2.png", 0)
+    imrc = img2  #cv2.imread("../hw2/input2.png", 0)
     h, w = imrc.shape
     K = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
     imrc, maskrc = cylindricalWarpImage(imrc, K)
 
-    imlc = img3 #cv2.imread("../hw2/input3.png", 0)
+    imlc = img3  #cv2.imread("../hw2/input3.png", 0)
     h, w = imlc.shape
     K = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
     imlc, masklc = cylindricalWarpImage(imlc, K)
@@ -282,7 +369,6 @@ def Cylindrical_warping(img1, img2, img3):
 
     (M, pts1, pts2, mask) = getTransform(imlc, imcc)
     outlc = cv2.warpAffine(imlc, M, (imcc.shape[1], imcc.shape[0]))
-
 
     imfinal = np.maximum.reduce([outrc, imcc, outlc])
     output_image = imfinal
@@ -298,7 +384,48 @@ def Bonus_cylindrical_warping(img1, img2, img3):
 
     # Write your codes here
     output_image = img1  # This is dummy output, change it to your output
+    # =====================================================
+    f = 430
+    imcc = img1  #cv2.imread("../hw2/input1.png", 0)
+    h, w = imcc.shape
+    K = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
+    imcc, maskcc = cylindricalWarpImage(imcc, K)
 
+    imrc = img2  #cv2.imread("../hw2/input2.png", 0)
+    h, w = imrc.shape
+    K = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
+    imrc, maskrc = cylindricalWarpImage(imrc, K)
+
+    imlc = img3  #cv2.imread("../hw2/input3.png", 0)
+    h, w = imlc.shape
+    K = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
+    imlc, masklc = cylindricalWarpImage(imlc, K)
+
+    imcc = cv2.copyMakeBorder(imcc, 50, 50, 300, 300, cv2.BORDER_CONSTANT)
+    maskcc = cv2.copyMakeBorder(maskcc, 50, 50, 300, 300, cv2.BORDER_CONSTANT)
+
+    imrc = cv2.copyMakeBorder(imrc, 50, 50, 300, 300, cv2.BORDER_CONSTANT)
+    maskrc = cv2.copyMakeBorder(maskrc, 50, 50, 300, 300, cv2.BORDER_CONSTANT)
+
+    imlc = cv2.copyMakeBorder(imlc, 50, 50, 300, 300, cv2.BORDER_CONSTANT)
+    masklc = cv2.copyMakeBorder(masklc, 50, 50, 300, 300, cv2.BORDER_CONSTANT)
+
+    (M, pts1, pts2, mask) = getTransform(imrc, imcc)
+    outrc = cv2.warpAffine(imrc, M, (imcc.shape[1], imcc.shape[0]))
+    mask_outrc = cv2.warpAffine(maskrc, M, (imcc.shape[1], imcc.shape[0]))
+
+    (M, pts1, pts2, mask) = getTransform(imlc, imcc)
+    outlc = cv2.warpAffine(imlc, M, (imcc.shape[1], imcc.shape[0]))
+    mask_outlc = cv2.warpAffine(masklc, M, (imcc.shape[1], imcc.shape[0]))
+
+    lpb_lc = Laplacian_Pyramid_Blending_with_mask2(outlc, imcc, mask_outlc, 3)
+    lpb_rc = Laplacian_Pyramid_Blending_with_mask2(outrc, imcc, mask_outrc, 3)
+
+    imfinal = np.maximum.reduce([lpb_rc, lpb_lc])
+    imfinal2 = np.array(imfinal * 255, dtype=np.uint8)
+
+    output_image = imfinal2
+    # =====================================================
     # Write out the result
     output_name = sys.argv[5] + "output_cylindrical_lpb.png"
     cv2.imwrite(output_name, output_image)
