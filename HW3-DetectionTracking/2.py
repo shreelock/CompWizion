@@ -5,16 +5,16 @@ import skvideo.io
 cap = skvideo.io.VideoCapture("02-1.avi")
 # take first frame of the video
 ret, frame = cap.read()
-
 # setup initial location of window
-r, h, c, w = 250, 90, 400, 125  # simply hardcoded the values
+c, r, w, h = 60, 37, 63, 63
+# r, h, c, w = 250, 90, 400, 125  # simply hardcoded the values
 track_window = (c, r, w, h)
+print track_window
 
 # set up the ROI for tracking
-roi = frame[r:r + h, c:c + w]
+roi = frame[r: r+h, c : c+w]
 hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 mask = cv2.inRange(hsv_roi, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
-print mask
 roi_hist = cv2.calcHist([hsv_roi], [0], mask, [180], [0, 180])
 cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
 
