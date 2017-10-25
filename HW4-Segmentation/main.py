@@ -150,10 +150,17 @@ if __name__ == '__main__':
     fgbg_superpixels = [fg_segments, bg_segments]
     graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
 
-    mask = np.zeros(img_marking.shape[0:2], dtype = np.uint8)# dummy assignment for mask, change it to your result
-    for i in range(graph_cut.shape[0]):
-        mask[superpixels == i] = 255 if graph_cut[i] else 0
-    # ======================================== #
+    mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
+    print graph_cut.shape[0], max(superpixels.flatten())+1
+    #Graph cut gives us true and false for each superpixel in the given spxl img
+    
+    tot_spxls = graph_cut.shape[0]
+    
+    for i in range(tot_spxls):
+        if graph_cut[i] == True:
+            mask[superpixels == i] = 255
 
     output_name = sys.argv[3] + "mask.png"
+    cv2.imshow("im", mask)
+    cv2.waitKey()
     cv2.imwrite(output_name, mask);
