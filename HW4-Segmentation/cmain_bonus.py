@@ -180,22 +180,23 @@ if __name__ == '__main__':
     while(1):
         cv2.imshow('image',img)
         cv2.imshow('image_marking',img_marking)
-        fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
-        bg_cumulative_hist = cumulative_histogram_for_superpixels(bg_segments, color_hists)
-        fgbg_hists = [fg_cumulative_hist, bg_cumulative_hist]
-        fgbg_superpixels = [fg_segments, bg_segments]
-        graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
-
-        mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
-        # print graph_cut.shape[0], max(superpixels.flatten())+1
-        #Graph cut gives us true and false for each superpixel in the given spxl img
-
-        tot_spxls = graph_cut.shape[0]
-        for i in range(tot_spxls):
-            if graph_cut[i] == True:
-                mask[superpixels == i] = 255
-
         cv2.imshow("image_mask", mask)
+        if fg_done and bg_done:
+            fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
+            bg_cumulative_hist = cumulative_histogram_for_superpixels(bg_segments, color_hists)
+            fgbg_hists = [fg_cumulative_hist, bg_cumulative_hist]
+            fgbg_superpixels = [fg_segments, bg_segments]
+            graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
+
+            mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
+            # print graph_cut.shape[0], max(superpixels.flatten())+1
+            #Graph cut gives us true and false for each superpixel in the given spxl img
+
+            tot_spxls = graph_cut.shape[0]
+            for i in range(tot_spxls):
+                if graph_cut[i] == True:
+                    mask[superpixels == i] = 255
+
         k = cv2.waitKey(1) & 0xFF
         if k == ord('z'):
             draw_fg = not draw_fg
