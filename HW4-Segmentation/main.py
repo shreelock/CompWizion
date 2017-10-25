@@ -29,7 +29,7 @@ def help_message():
 # Calculate the SLIC superpixels, their histograms and neighbors
 def superpixels_histograms_neighbors(img):
     # SLIC
-    segments = slic(img, n_segments=500, compactness=20)
+    segments = slic(img, n_segments=400, compactness=40)
     segments_ids = np.unique(segments)
 
     # centers
@@ -159,11 +159,11 @@ if __name__ == '__main__':
             mask[superpixels == i] = 255
 
     output_name = sys.argv[3] + "mask.png"
-    cv2.imshow("im", mask)
-    cv2.waitKey()
+    #cv2.imshow("im", mask)
+    #cv2.waitKey()
     cv2.imwrite(output_name, mask);
 
 
-    master = cv2.imread("example_output.png",0)
-    slave = cv2.imread("mask.png",0)
-    print RMSD(master, slave)
+    #master = cv2.imread("example_output.png",0)
+    #slave = cv2.imread("mask.png",0)
+    #print RMSD(master, slave)
