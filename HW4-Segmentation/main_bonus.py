@@ -1,9 +1,3 @@
-# ================================================
-# Skeleton codes for HW4
-# Read the skeleton codes carefully and put all your
-# codes into main function
-# ================================================
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -127,38 +121,93 @@ def RMSD(target, master):
 
         return total_diff;
 
+
+
+drawing = False # true if mouse is pressed
+draw_fg = True # if True, draw rectangle. Press 'm' to toggle to curve
+fg_done = False
+bg_done = False
+ix,iy = -1,-1
+brush_sz = 3
+
+# mouse callback function
+def draw_on_image(event,x,y,flags,param):
+    global ix,iy,drawing,draw_fg, fg_done, bg_done, brush_sz
+
+    if event == cv2.EVENT_LBUTTONDOWN:
+        drawing = True
+        ix,iy = x,y
+
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing == True:
+            if draw_fg == True:
+                fg_done = True
+                for i in range(-brush_sz, brush_sz+1):
+                    for j in range(-brush_sz, brush_sz+1):
+                        img_marking[y+i][x+j] = (0,0,255)
+            else:
+                bg_done = True
+                for i in range(-brush_sz, brush_sz+1):
+                    for j in range(-brush_sz, brush_sz+1):
+                        img_marking[y+i][x+j] = (255,0,0)
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        drawing = False
+        if fg_done and bg_done:
+            print "Segmentation can start"
+
+
 if __name__ == '__main__':
 
     # validate the input arguments
-    if (len(sys.argv) != 4):
+    if (len(sys.argv) != 3):
         help_message()
         sys.exit()
 
     img = cv2.imread(sys.argv[1], cv2.IMREAD_COLOR)
-    img_marking = cv2.imread(sys.argv[2], cv2.IMREAD_COLOR)
-
-    # ======================================== #
-    # write all your codes here
+    img_marking = np.ones(img.shape, np.uint8)*255
+    cv2.namedWindow('image')
+    cv2.namedWindow('image_mask')
+    cv2.namedWindow('image_marking')
 
     centers, color_hists, superpixels, neighbors = superpixels_histograms_neighbors(img)
+
     fg_segments, bg_segments = find_superpixels_under_marking(img_marking, superpixels)
-    fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
-    bg_cumulative_hist = cumulative_histogram_for_superpixels(bg_segments, color_hists)
-    norm_hists = normalize_histograms(color_hists)
-    fgbg_hists = [fg_cumulative_hist, bg_cumulative_hist]
-    fgbg_superpixels = [fg_segments, bg_segments]
-    graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
+    cv2.setMouseCallback('image',draw_on_image)
 
-    mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
-    #Graph cut gives us true and false for each superpixel in the given spxl img
 
-    tot_spxls = graph_cut.shape[0]
+    while(1):
+        cv2.imshow('image',img)
+        cv2.imshow('image_marking',img_marking)
+        fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
+        bg_cumulative_hist = cumulative_histogram_for_superpixels(bg_segments, color_hists)
+        norm_hists = normalize_histograms(color_hists)
+        fgbg_hists = [fg_cumulative_hist, bg_cumulative_hist]
+        fgbg_superpixels = [fg_segments, bg_segments]
+        graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
 
-    for i in range(tot_spxls):
-        if graph_cut[i] == True:
-            mask[superpixels == i] = 255
+        mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
+        # print graph_cut.shape[0], max(superpixels.flatten())+1
+        #Graph cut gives us true and false for each superpixel in the given spxl img
 
-    output_name = sys.argv[3] + "mask.png"
-    cv2.imshow("im", mask)
-    cv2.waitKey()
-    cv2.imwrite(output_name, mask);
+        tot_spxls = graph_cut.shape[0]
+
+        for i in range(tot_spxls):
+            if graph_cut[i] == True:
+                mask[superpixels == i] = 255
+
+        cv2.imshow("image_mask", mask)
+        k = cv2.waitKey(1) & 0xFF
+        if k == ord('z'):
+            draw_fg = not draw_fg
+        elif k == 27:
+            break
+
+
+
+
+
+
+
+
+    cv2.destroyAllWindows()
