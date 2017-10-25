@@ -166,6 +166,8 @@ if __name__ == '__main__':
 
     img = cv2.imread(sys.argv[1], cv2.IMREAD_COLOR)
     img_marking = np.ones(img.shape, np.uint8)*255
+    mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
+
     cv2.namedWindow('image')
     cv2.namedWindow('image_mask')
     cv2.namedWindow('image_marking')
