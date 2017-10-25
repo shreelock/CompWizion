@@ -140,7 +140,6 @@ if __name__ == '__main__':
     # ======================================== #
     # write all your codes here
 
-
     centers, color_hists, superpixels, neighbors = superpixels_histograms_neighbors(img)
     fg_segments, bg_segments = find_superpixels_under_marking(img_marking, superpixels)
     fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
@@ -151,7 +150,6 @@ if __name__ == '__main__':
     graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
 
     mask = np.zeros((img_marking.shape[0], img_marking.shape[1]),dtype=np.uint8)
-    print graph_cut.shape[0], max(superpixels.flatten())+1
     #Graph cut gives us true and false for each superpixel in the given spxl img
     
     tot_spxls = graph_cut.shape[0]
