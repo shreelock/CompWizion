@@ -162,3 +162,8 @@ if __name__ == '__main__':
     cv2.imshow("im", mask)
     cv2.waitKey()
     cv2.imwrite(output_name, mask);
+
+
+    master = cv2.imread("example_output.png",0)
+    slave = cv2.imread("mask.png",0)
+    print RMSD(master, slave)
