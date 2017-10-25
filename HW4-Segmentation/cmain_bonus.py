@@ -173,6 +173,7 @@ if __name__ == '__main__':
     centers, color_hists, superpixels, neighbors = superpixels_histograms_neighbors(img)
 
     fg_segments, bg_segments = find_superpixels_under_marking(img_marking, superpixels)
+    norm_hists = normalize_histograms(color_hists)
     cv2.setMouseCallback('image',draw_on_image)
 
 
@@ -181,7 +182,6 @@ if __name__ == '__main__':
         cv2.imshow('image_marking',img_marking)
         fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
         bg_cumulative_hist = cumulative_histogram_for_superpixels(bg_segments, color_hists)
-        norm_hists = normalize_histograms(color_hists)
         fgbg_hists = [fg_cumulative_hist, bg_cumulative_hist]
         fgbg_superpixels = [fg_segments, bg_segments]
         graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
@@ -191,7 +191,6 @@ if __name__ == '__main__':
         #Graph cut gives us true and false for each superpixel in the given spxl img
 
         tot_spxls = graph_cut.shape[0]
-
         for i in range(tot_spxls):
             if graph_cut[i] == True:
                 mask[superpixels == i] = 255
@@ -202,12 +201,4 @@ if __name__ == '__main__':
             draw_fg = not draw_fg
         elif k == 27:
             break
-
-
-
-
-
-
-
-
     cv2.destroyAllWindows()
