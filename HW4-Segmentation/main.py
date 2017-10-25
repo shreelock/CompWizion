@@ -13,6 +13,7 @@ from skimage.data import astronaut
 from skimage.util import img_as_float
 import maxflow
 from scipy.spatial import Delaunay
+import sys
 
 def help_message():
    print("Usage: [Input_Image] [Input_Marking] [Output_Directory]")
@@ -127,22 +128,32 @@ def RMSD(target, master):
         return total_diff;
 
 if __name__ == '__main__':
-   
+
     # validate the input arguments
     if (len(sys.argv) != 4):
         help_message()
         sys.exit()
 
-    img = cv2.imread(sys.argv[1], cv2.imread_color)
-    img_marking = cv2.imread(sys.argv[2], cv2.imread_color)
+    img = cv2.imread(sys.argv[1], cv2.IMREAD_COLOR)
+    img_marking = cv2.imread(sys.argv[2], cv2.IMREAD_COLOR)
 
     # ======================================== #
     # write all your codes here
 
-    mask = cv2.cvtcolor(img_marking, cv2.color_bgr2gray) # dummy assignment for mask, change it to your result
 
+    centers, color_hists, superpixels, neighbors = superpixels_histograms_neighbors(img)
+    fg_segments, bg_segments = find_superpixels_under_marking(img_marking, superpixels)
+    fg_cumulative_hist = cumulative_histogram_for_superpixels(fg_segments, color_hists)
+    bg_cumulative_hist = cumulative_histogram_for_superpixels(bg_segments, color_hists)
+    norm_hists = normalize_histograms(color_hists)
+    fgbg_hists = [fg_cumulative_hist, bg_cumulative_hist]
+    fgbg_superpixels = [fg_segments, bg_segments]
+    graph_cut = do_graph_cut(fgbg_hists, fgbg_superpixels, norm_hists, neighbors)
+
+    mask = np.zeros(img_marking.shape[0:2], dtype = np.uint8)# dummy assignment for mask, change it to your result
+    for i in range(graph_cut.shape[0]):
+        mask[superpixels == i] = 255 if graph_cut[i] else 0
     # ======================================== #
 
-    # read video file
     output_name = sys.argv[3] + "mask.png"
     cv2.imwrite(output_name, mask);
